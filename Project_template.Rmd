@@ -1,0 +1,139 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+# Activity monitoring Project 1
+
+### Question 1
+
+1.What is mean total number of steps taken per day?
+
+2.What is the average daily activity pattern?
+
+3.Imputing missing values
+
+4.Are there differences in activity patterns between weekdays and weekends?
+
+Loading the Data
+
+```{r}
+activity <- read.csv('activity.csv')
+head(activity)
+```
+
+\*\* 1 \*\* importing the necessaries libraries
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+# calculating the total number of steps taken per day
+daily_steps <- activity %>% group_by(date) %>% summarise(steps=sum(steps, na.rm=TRUE))
+head(daily_steps)
+```
+
+\*\* 2 \*\*
+
+```{r}
+with(daily_steps, hist(steps, xlab="Total steps", main="Histogram of Total steps per day"))
+```
+
+\*\* 3 \*\*
+
+```{r}
+mean(daily_steps$steps, na.rm=TRUE)
+median(daily_steps$steps, na.rm=TRUE)
+```
+
+# Question 2
+
+## What is the daily average daily activity pattern?
+
+### The Average Daily Activity Pattern
+
+```{r}
+#importing the necessaries libraries
+library(ggplot2)
+```
+
+```{r}
+actv1 <- activity %>% group_by(interval) %>% summarise(steps = mean(steps, na.rm=T))
+stepmaxindex <- which.max(actv1$steps)
+maxstep <- actv1$steps[stepmaxindex]
+maxinterval <- actv1$interval[stepmaxindex]
+```
+
+```{r}
+#using ggplot for visualization
+g <- ggplot(actv1, aes(x=interval, y=steps)) + geom_line()
+g <- g + geom_hline(yintercept=maxstep, col = 'magenta', lwd=0.6, alpha=0.5)
+g <- g + geom_vline(xintercept = maxinterval, col = 'darkgreen', lwd=0.6, alpha=0.6)
+g
+```
+
+```{r}
+#which 5-minute interval, on average across all the days in the #dataset, contains the maximum number of steps?
+actv1[actv1$steps == max(actv1$steps),1]
+```
+
+# Question 3
+
+## Imputing Missing Values
+
+```{r}
+nill <- activity[activity$steps %in% NA,]
+dim(nill)
+```
+
+use mean of steps taken every 5-minute interval to fill in all of the missing values in the dataset. there is 8 days missing value, so replicating the mean for 8 time is needed.
+
+```{r}
+meansteps <- actv1$steps
+nill$steps <- rep(meansteps, 8)
+```
+
+create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r}
+not_nill <- activity[complete.cases(activity),]
+newdf <- rbind(not_nill, nill)
+table(is.na(newdf$steps))
+```
+
+make a histogram of the total number of steps taken each day and calculate report the **mean** and **median** total number of steps taken per day.Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+```{r}
+newdaysteps <- newdf %>% group_by(date) %>% summarise(steps=sum(steps, na.rm=TRUE))
+with(newdaysteps, hist(steps, xlab="New total steps without NA", main="New Histogram of Total Steps per day"))
+```
+
+```{r}
+# the mean 
+mean(newdaysteps$steps, na.rm=TRUE)
+# the median
+median(newdaysteps$steps, na.rm=TRUE)
+```
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+1.Create a new factor variable in the dataset with two levels ?C ??weekday?? and ??weekend?? indicating whether a given date is a weekday or weekend day.
+
+```{r}
+newdf$date <- as.Date(newdf$date,"%Y-%m-%d")
+newdf$week <- ifelse(weekdays(newdf$date) %in% c("Saturday","Sunday"),"weekend","weekday")
+newdf$week <- as.factor(newdf$week)
+str(newdf)
+```
+
+Make a panel plot containing a time series plot to see the different between weekdays and weekends.
+
+```{r}
+newsteps <- newdf %>% group_by(week,interval) %>% summarise(steps=mean(steps))
+g <- ggplot(newsteps,aes(interval,steps,group=week))
+g + geom_line() + facet_grid(week~.)
+g
+```
